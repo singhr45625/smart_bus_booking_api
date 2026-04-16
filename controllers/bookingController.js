@@ -5,10 +5,15 @@ const Bus = require('../models/Bus');
 // @route   POST /api/bookings
 const createBooking = async (req, res) => {
     try {
-        const { busId, seatNumbers } = req.body;
-        
+        const { busId, seatNumbers, passengerDetails } = req.body;
+
         if (!seatNumbers || !Array.isArray(seatNumbers) || seatNumbers.length === 0) {
             return res.status(400).json({ error: 'Please provide valid seat numbers' });
+        }
+
+        // Restrict role-based booking: Only customers can book
+        if (req.user?.isOperator || req.user?.isAdmin) {
+            return res.status(403).json({ error: 'Operators and Admins are not allowed to book tickets. Use a customer account.' });
         }
 
         const bus = await Bus.findById(busId);
@@ -25,7 +30,7 @@ const createBooking = async (req, res) => {
         if (bus.bookedSeats.length + seatNumbers.length > bus.totalSeats) {
             return res.status(400).json({ error: 'Exceeds total bus capacity' });
         }
-        
+
         // Default to a 0 price if the schedule/price hasn't been set by operator yet
         const applicablePrice = bus.price || 0;
 
@@ -33,12 +38,14 @@ const createBooking = async (req, res) => {
             user: req.user._id,
             bus: busId,
             seatNumbers,
-            totalPrice: applicablePrice * seatNumbers.length
+            totalPrice: applicablePrice * seatNumbers.length,
+            passengerDetails,
+            status: 'Confirmed'
         });
 
         bus.bookedSeats.push(...seatNumbers);
         await bus.save();
-        
+
         const createdBooking = await booking.save();
         res.status(201).json(createdBooking);
     } catch (error) {
