@@ -114,7 +114,9 @@ const seedBuses = async () => {
                         date,
                         totalSeats: 40,
                         bookedSeats: [],
-                        amenities: amenitiesList.sort(() => 0.5 - Math.random()).slice(0, 4)
+                        amenities: amenitiesList.sort(() => 0.5 - Math.random()).slice(0, 4),
+                        currentLocation: CITY_COORDS[route.s] || { lat: 0, lng: 0 },
+                        status: Math.random() > 0.7 ? 'on_road' : 'not_started'
                     });
                 }
             }

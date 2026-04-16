@@ -66,4 +66,20 @@ const getMyBookings = async (req, res) => {
     }
 };
 
-module.exports = { createBooking, getMyBookings };
+// @desc    Get booking by ID
+// @route   GET /api/bookings/:id
+const getBookingById = async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id).populate('bus').populate('user', 'username email');
+        if (booking) {
+            res.json(booking);
+        } else {
+            res.status(404).json({ message: 'Booking not found' });
+        }
+    } catch (error) {
+        console.error('getBookingById Error:', error);
+        res.status(500).json({ error: error.message || 'Internal Server Error' });
+    }
+};
+
+module.exports = { createBooking, getMyBookings, getBookingById };

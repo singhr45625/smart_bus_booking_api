@@ -15,7 +15,24 @@ const busSchema = mongoose.Schema({
     amenities: { type: [String], default: [] },
     boardingPoints: [{ location: String, time: String }],
     droppingPoints: [{ location: String, time: String }],
-    bookedSeats: { type: [String], default: [] }
+    bookedSeats: { type: [String], default: [] },
+    currentLocation: {
+        lat: { type: Number, default: 0 },
+        lng: { type: Number, default: 0 }
+    },
+    status: { 
+        type: String, 
+        enum: ['not_started', 'on_road', 'completed', 'delayed'], 
+        default: 'not_started' 
+    },
+    bearing: { type: Number, default: 0 },
+    intermediateStops: [{
+        name: String,
+        lat: Number,
+        lng: Number,
+        arrivalTime: String,
+        passed: { type: Boolean, default: false }
+    }]
 }, { timestamps: true });
 
 const Bus = mongoose.model('Bus', busSchema);
