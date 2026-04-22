@@ -215,6 +215,10 @@ const cancelBooking = async (req, res) => {
             return res.status(400).json({ error: 'Booking is already cancelled' });
         }
 
+        if (booking.status === 'Boarded') {
+            return res.status(400).json({ error: 'Cannot cancel a ticket after boarding.' });
+        }
+
         // Refund Logic: 80% of the paid amount is refunded
         const refundAmount = booking.paidAmount * 0.8;
         const cancellationFee = booking.paidAmount * 0.2;
