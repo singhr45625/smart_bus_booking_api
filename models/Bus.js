@@ -16,6 +16,7 @@ const busSchema = mongoose.Schema({
     boardingPoints: [{ location: String, time: String }],
     droppingPoints: [{ location: String, time: String }],
     bookedSeats: { type: [String], default: [] },
+    quickTicketSeats: { type: [String], default: [] },
     currentLocation: {
         lat: { type: Number, default: 0 },
         lng: { type: Number, default: 0 }
@@ -26,6 +27,7 @@ const busSchema = mongoose.Schema({
         default: 'not_started' 
     },
     bearing: { type: Number, default: 0 },
+    operatorContact: { type: String },
     intermediateStops: [{
         name: String,
         lat: Number,

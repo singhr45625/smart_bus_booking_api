@@ -74,6 +74,7 @@ const io = new Server(server, {
 });
 
 const Bus = require('./models/Bus');
+const Booking = require('./models/Booking');
 
 // Distance helper (Haversine)
 const getHaversineDistance = (lat1, lon1, lat2, lon2) => {
@@ -92,47 +93,40 @@ setInterval(async () => {
     try {
         const activeBuses = await Bus.find({ status: 'on_road' });
 
-        activeBuses.forEach(async (bus) => {
-            // Simulation: Move slightly
-            const latChange = (Math.random() - 0.5) * 0.001;
-            const lngChange = (Math.random() - 0.5) * 0.001;
+        for (const bus of activeBuses) {
+            if (!bus.intermediateStops || bus.intermediateStops.length === 0) continue;
 
-            bus.currentLocation.lat += latChange;
-            bus.currentLocation.lng += lngChange;
-            bus.bearing = Math.floor(Math.random() * 360);
+            const nextStop = bus.intermediateStops.find(s => !s.passed);
+            
+            if (nextStop) {
+                const dLat = nextStop.lat - bus.currentLocation.lat;
+                const dLng = nextStop.lng - bus.currentLocation.lng;
+                const distance = Math.sqrt(dLat * dLat + dLng * dLng);
 
-            // Check proximity to intermediate stops
-            let stopsChanged = false;
-            if (bus.intermediateStops && bus.intermediateStops.length > 0) {
-                bus.intermediateStops.forEach(stop => {
-                    if (!stop.passed) {
-                        const dist = getHaversineDistance(
-                            bus.currentLocation.lat,
-                            bus.currentLocation.lng,
-                            stop.lat,
-                            stop.lng
-                        );
-                        if (dist < 5) { // Within 5km
-                            stop.passed = true;
-                            stopsChanged = true;
-                        }
-                    }
-                });
+                if (distance < 0.001) { 
+                    nextStop.passed = true;
+                } else {
+                    const speed = 0.0005;
+                    bus.currentLocation.lat += (dLat / distance) * speed;
+                    bus.currentLocation.lng += (dLng / distance) * speed;
+                    bus.bearing = Math.atan2(dLng, dLat) * (180 / Math.PI);
+                }
+            } else {
+                bus.status = 'completed';
             }
 
             await bus.save();
 
-            // Emit update to all clients tracking this bus
             io.emit(`busUpdate_${bus._id}`, {
+                id: bus._id,
                 lat: bus.currentLocation.lat,
                 lng: bus.currentLocation.lng,
                 bearing: bus.bearing,
                 status: bus.status,
                 intermediateStops: bus.intermediateStops
             });
-        });
+        }
 
-        // Also emit a fleet update for admins
         const fleetData = activeBuses.map(b => ({
             id: b._id,
             name: b.name,
@@ -140,6 +134,7 @@ setInterval(async () => {
             lng: b.currentLocation.lng,
             bearing: b.bearing,
             busNumber: b.busNumber,
+            status: b.status,
             intermediateStops: b.intermediateStops
         }));
         io.emit('fleetUpdate', fleetData);
@@ -147,6 +142,38 @@ setInterval(async () => {
         console.error('Simulation Error:', err.message);
     }
 }, 3000); // Update every 3 seconds
+
+// Auto-cancellation job for unpaid partial bookings
+setInterval(async () => {
+    try {
+        console.log('Running auto-cancellation job for unpaid bookings...');
+        const today = new Date().toISOString().split('T')[0];
+        const unpaidBookings = await Booking.find({
+            status: 'Partially Paid'
+        }).populate('bus');
+
+        for (const booking of unpaidBookings) {
+            if (booking.bus && booking.bus.date <= today) {
+                // Cancel booking
+                booking.status = 'Cancelled - Unpaid';
+                await booking.save();
+
+                // Release seats and mark as Quick Ticket
+                const bus = await Bus.findById(booking.bus._id);
+                if (bus) {
+                    bus.bookedSeats = bus.bookedSeats.filter(s => !booking.seatNumbers.includes(s));
+                    // Ensure we don't duplicate seats in quickTicketSeats
+                    const newQuickSeats = booking.seatNumbers.filter(s => !bus.quickTicketSeats.includes(s));
+                    bus.quickTicketSeats.push(...newQuickSeats);
+                    await bus.save();
+                    console.log(`Cancelled unpaid booking ${booking._id} and released seats as Quick Tickets.`);
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Auto-cancel Job Error:', err.message);
+    }
+}, 3600000); // Check every hour (3600000ms)
 
 io.on('connection', (socket) => {
     console.log('Client connected for tracking:', socket.id);

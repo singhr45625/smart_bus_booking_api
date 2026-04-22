@@ -87,10 +87,14 @@ router.get('/buses', async (req, res) => {
 
 // Add Schedule (Updates existing bus since Bus model includes scheduling)
 router.post('/schedules', async (req, res) => {
-    const { busId, source, destination, departureTime, arrivalTime, price, totalSeats, date } = req.body;
+    const { busId, source, destination, departureTime, arrivalTime, price, totalSeats, date, intermediateStops, operatorContact } = req.body;
     try {
-        // Fetch intermediate stops automatically using Google Maps Directions API
-        const stops = await getRouteWaypoints(source, destination);
+        let finalStops = intermediateStops;
+
+        // If no manual stops, try to fetch them automatically
+        if (!finalStops || finalStops.length === 0) {
+            finalStops = await getRouteWaypoints(source, destination);
+        }
 
         const bus = await Bus.findOneAndUpdate(
             { _id: busId, operator: req.user._id },
@@ -102,7 +106,8 @@ router.post('/schedules', async (req, res) => {
                 price, 
                 totalSeats, 
                 date,
-                intermediateStops: stops // Save the identified stations
+                operatorContact,
+                intermediateStops: finalStops 
             },
             { new: true }
         );
@@ -116,10 +121,16 @@ router.post('/schedules', async (req, res) => {
     }
 });
 
+const { releaseUnpaidBookings } = require('../controllers/bookingController');
+
 // Boarding List (get passengers for a schedule)
 router.get('/boardings/:busId', async (req, res) => {
     try {
         const { busId } = req.params;
+        
+        // Automatically release unpaid seats for today's buses
+        await releaseUnpaidBookings();
+
         const boardings = await Booking.find({ bus: busId }).populate('user', 'username email');
         res.json(boardings);
     } catch (error) {
@@ -133,9 +144,11 @@ router.post('/boardings/collect/:bookingId', async (req, res) => {
         const { bookingId } = req.params;
         const booking = await Booking.findById(bookingId);
         if (booking) {
-            booking.status = 'Collected';
+            booking.paidAmount = booking.totalPrice;
+            booking.remainingBalance = 0;
+            booking.status = 'Confirmed';
             await booking.save();
-            res.json({ message: 'Amount collected successfully' });
+            res.json({ message: 'Amount collected successfully', booking });
         } else {
             res.status(404).json({ error: 'Booking not found' });
         }

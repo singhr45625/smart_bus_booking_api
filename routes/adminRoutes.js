@@ -50,6 +50,8 @@ router.get('/operators', async (req, res) => {
     }
 });
 
+const { releaseUnpaidBookings } = require('../controllers/bookingController');
+
 // Get all bookings
 router.get('/bookings', async (req, res) => {
     try {
@@ -61,5 +63,8 @@ router.get('/bookings', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// Manual trigger to release unpaid seats
+router.post('/release-seats', releaseUnpaidBookings);
 
 module.exports = router;

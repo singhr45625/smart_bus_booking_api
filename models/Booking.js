@@ -5,6 +5,9 @@ const bookingSchema = mongoose.Schema({
     bus: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Bus' },
     seatNumbers: { type: [String], required: true },
     totalPrice: { type: Number, required: true },
+    isPartialPayment: { type: Boolean, default: false },
+    paidAmount: { type: Number, default: 0 },
+    remainingBalance: { type: Number, default: 0 },
     status: { type: String, required: true, default: 'Confirmed' },
     passengerDetails: {
         name: String,

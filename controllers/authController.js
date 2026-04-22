@@ -34,6 +34,7 @@ const registerUser = async (req, res) => {
                 username: user.username,
                 email: user.email,
                 role: isAdmin ? 'admin' : (isOperator ? 'operator' : 'user'),
+                walletBalance: user.walletBalance,
                 token: generateToken(user._id)
             });
         } else {
@@ -58,6 +59,7 @@ const authUser = async (req, res) => {
                 username: user.username,
                 email: user.email,
                 role: role,
+                walletBalance: user.walletBalance,
                 token: generateToken(user._id)
             });
         } else {
@@ -68,4 +70,46 @@ const authUser = async (req, res) => {
     }
 };
 
-module.exports = { registerUser, authUser };
+// @desc    Add money to wallet
+// @route   POST /api/auth/wallet/add
+const addWalletMoney = async (req, res) => {
+    try {
+        const { amount } = req.body;
+        const user = await User.findById(req.user._id);
+        if (user) {
+            user.walletBalance = (user.walletBalance || 0) + Number(amount);
+            const updatedUser = await user.save();
+            res.json({
+                walletBalance: updatedUser.walletBalance,
+                message: `Successfully added ₹${amount} to your wallet.`
+            });
+        } else {
+            res.status(404).json({ error: 'User not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// @desc    Get user profile
+// @route   GET /api/auth/profile
+const getUserProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (user) {
+            res.json({
+                _id: user._id,
+                username: user.username,
+                email: user.email,
+                role: user.isAdmin ? 'admin' : (user.isOperator ? 'operator' : 'user'),
+                walletBalance: user.walletBalance
+            });
+        } else {
+            res.status(404).json({ error: 'User not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+module.exports = { registerUser, authUser, addWalletMoney, getUserProfile };
