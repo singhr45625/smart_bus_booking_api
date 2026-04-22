@@ -197,4 +197,52 @@ const releaseUnpaidBookings = async (req, res) => {
     }
 };
 
-module.exports = { createBooking, getMyBookings, getBookingById, payRemainingBalance, releaseUnpaidBookings };
+// @desc    Cancel booking and refund amount
+// @route   POST /api/bookings/:id/cancel
+const cancelBooking = async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+
+        if (!booking) {
+            return res.status(404).json({ error: 'Booking not found' });
+        }
+
+        if (booking.user.toString() !== req.user._id.toString()) {
+            return res.status(401).json({ error: 'Not authorized' });
+        }
+
+        if (booking.status === 'Cancelled') {
+            return res.status(400).json({ error: 'Booking is already cancelled' });
+        }
+
+        // Refund Logic: 80% of the paid amount is refunded
+        const refundAmount = booking.paidAmount * 0.8;
+        const cancellationFee = booking.paidAmount * 0.2;
+
+        const user = await User.findById(req.user._id);
+        user.walletBalance += refundAmount;
+        await user.save();
+
+        booking.status = 'Cancelled';
+        await booking.save();
+
+        // Release seats
+        const bus = await Bus.findById(booking.bus);
+        if (bus) {
+            bus.bookedSeats = bus.bookedSeats.filter(s => !booking.seatNumbers.includes(s));
+            await bus.save();
+        }
+
+        res.json({ 
+            message: 'Booking cancelled successfully', 
+            refundAmount, 
+            cancellationFee,
+            newBalance: user.walletBalance 
+        });
+    } catch (error) {
+        console.error('cancelBooking Error:', error);
+        res.status(500).json({ error: error.message || 'Internal Server Error' });
+    }
+};
+
+module.exports = { createBooking, getMyBookings, getBookingById, payRemainingBalance, releaseUnpaidBookings, cancelBooking };
