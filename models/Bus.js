@@ -21,10 +21,10 @@ const busSchema = mongoose.Schema({
         lat: { type: Number, default: 0 },
         lng: { type: Number, default: 0 }
     },
-    status: { 
-        type: String, 
-        enum: ['not_started', 'on_road', 'completed', 'delayed'], 
-        default: 'not_started' 
+    status: {
+        type: String,
+        enum: ['not_started', 'on_road', 'completed', 'delayed'],
+        default: 'not_started'
     },
     bearing: { type: Number, default: 0 },
     operatorContact: { type: String },

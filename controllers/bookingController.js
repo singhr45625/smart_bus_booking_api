@@ -34,7 +34,7 @@ const createBooking = async (req, res) => {
 
         // Default to a 0 price if the schedule/price hasn't been set by operator yet
         const basePrice = bus.price || 0;
-        
+
         let totalFare = 0;
         seatNumbers.forEach(seat => {
             const isQuickTicket = bus.quickTicketSeats.includes(seat);
@@ -77,7 +77,7 @@ const createBooking = async (req, res) => {
         bus.bookedSeats.push(...seatNumbers);
         // If it was a quick ticket, remove it from quickTicketSeats
         bus.quickTicketSeats = bus.quickTicketSeats.filter(s => !seatNumbers.includes(s));
-        
+
         await bus.save();
 
         const createdBooking = await booking.save();
@@ -163,18 +163,18 @@ const releaseUnpaidBookings = async (req, res) => {
     try {
         // Get today's date in YYYY-MM-DD format
         const today = new Date().toISOString().split('T')[0];
-        
+
         // Find all partially paid bookings
         const bookings = await Booking.find({ status: 'Partially Paid' }).populate('bus');
-        
+
         let releaseCount = 0;
-        
+
         for (const booking of bookings) {
             // If bus date matches today (or is in the past and still partially paid)
             if (booking.bus && booking.bus.date === today) {
                 booking.status = 'Cancelled';
                 await booking.save();
-                
+
                 // Release seats and mark as Quick Ticket
                 const bus = await Bus.findById(booking.bus._id);
                 if (bus) {
@@ -237,11 +237,11 @@ const cancelBooking = async (req, res) => {
             await bus.save();
         }
 
-        res.json({ 
-            message: 'Booking cancelled successfully', 
-            refundAmount, 
+        res.json({
+            message: 'Booking cancelled successfully',
+            refundAmount,
             cancellationFee,
-            newBalance: user.walletBalance 
+            newBalance: user.walletBalance
         });
     } catch (error) {
         console.error('cancelBooking Error:', error);

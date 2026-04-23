@@ -19,7 +19,7 @@ router.get('/calculate-fare', async (req, res) => {
     try {
         const distance = await getDistance(source, destination);
         const stops = await getRouteWaypoints(source, destination);
-        
+
         // Rate: ₹5 per km
         const ratePerKm = 5;
         const suggestedPrice = distance * ratePerKm;
@@ -98,16 +98,16 @@ router.post('/schedules', async (req, res) => {
 
         const bus = await Bus.findOneAndUpdate(
             { _id: busId, operator: req.user._id },
-            { 
-                source, 
-                destination, 
-                departureTime, 
-                arrivalTime, 
-                price, 
-                totalSeats, 
+            {
+                source,
+                destination,
+                departureTime,
+                arrivalTime,
+                price,
+                totalSeats,
                 date,
                 operatorContact,
-                intermediateStops: finalStops 
+                intermediateStops: finalStops
             },
             { new: true }
         );
@@ -127,7 +127,7 @@ const { releaseUnpaidBookings } = require('../controllers/bookingController');
 router.get('/boardings/:busId', async (req, res) => {
     try {
         const { busId } = req.params;
-        
+
         // Automatically release unpaid seats for today's buses
         await releaseUnpaidBookings();
 
