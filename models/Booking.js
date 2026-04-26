@@ -6,6 +6,7 @@ const bookingSchema = mongoose.Schema({
     seatNumbers: { type: [String], required: true },
     totalPrice: { type: Number, required: true },
     isPartialPayment: { type: Boolean, default: false },
+    partialPaymentPercentage: { type: Number, default: 0 },
     paidAmount: { type: Number, default: 0 },
     remainingBalance: { type: Number, default: 0 },
     status: { type: String, required: true, default: 'Confirmed' },

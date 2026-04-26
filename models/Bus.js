@@ -11,6 +11,8 @@ const busSchema = mongoose.Schema({
     departureTime: { type: String },
     arrivalTime: { type: String },
     price: { type: Number },
+    basePrice: { type: Number },
+    demandFactor: { type: Number, default: 1 },
     totalSeats: { type: Number, required: true },
     amenities: { type: [String], default: [] },
     boardingPoints: [{ location: String, time: String }],

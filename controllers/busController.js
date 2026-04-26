@@ -77,7 +77,28 @@ const getBuses = async (req, res) => {
         }
 
         const buses = await Bus.find(query).sort({ departureTime: 1 });
-        res.json(buses);
+        
+        // Add dynamic pricing logic for display
+        const busesWithDynamicPricing = buses.map(bus => {
+            const busObj = bus.toObject();
+            if (!busObj.basePrice) busObj.basePrice = busObj.price;
+            
+            // Logic: If demandFactor > 1, price increases. 
+            // Also increase if departure is soon (within 24 hours - mock logic for demo)
+            let currentDemandFactor = busObj.demandFactor || 1;
+            
+            // Simple proximity pricing: +5% if travel is today
+            const today = new Date().toISOString().split('T')[0];
+            if (busObj.date === today) {
+                currentDemandFactor += 0.05;
+            }
+
+            busObj.currentPrice = Math.round(busObj.basePrice * currentDemandFactor);
+            busObj.priceIncreasePercent = Math.round((currentDemandFactor - 1) * 100);
+            return busObj;
+        });
+
+        res.json(busesWithDynamicPricing);
     } catch (error) {
         console.error('getBuses Error:', error);
         res.status(500).json({ error: error.message });
@@ -90,7 +111,17 @@ const getBusById = async (req, res) => {
     try {
         const bus = await Bus.findById(req.params.id);
         if (bus) {
-            res.json(bus);
+            const busObj = bus.toObject();
+            if (!busObj.basePrice) busObj.basePrice = busObj.price;
+            
+            let currentDemandFactor = busObj.demandFactor || 1;
+            const today = new Date().toISOString().split('T')[0];
+            if (busObj.date === today) currentDemandFactor += 0.05;
+
+            busObj.currentPrice = Math.round(busObj.basePrice * currentDemandFactor);
+            busObj.priceIncreasePercent = Math.round((currentDemandFactor - 1) * 100);
+            
+            res.json(busObj);
         } else {
             res.status(404).json({ message: 'Bus not found' });
         }
@@ -103,7 +134,7 @@ const getBusById = async (req, res) => {
 // @route   POST /api/buses
 const addBus = async (req, res) => {
     try {
-        const { name, busNumber, type, date, source, destination, departureTime, arrivalTime, price, totalSeats, amenities, boardingPoints, droppingPoints } = req.body;
+        const { name, busNumber, type, date, source, destination, departureTime, arrivalTime, price, totalSeats, amenities, boardingPoints, droppingPoints, demandFactor } = req.body;
 
         // Calculate dynamic price if not provided
         const finalPrice = price || (calculateDistance(source, destination) * 5);
@@ -111,6 +142,8 @@ const addBus = async (req, res) => {
         const bus = new Bus({
             name, busNumber, type, date, source, destination, departureTime, arrivalTime,
             price: finalPrice,
+            basePrice: finalPrice,
+            demandFactor: demandFactor || 1,
             totalSeats,
             amenities, boardingPoints, droppingPoints
         });

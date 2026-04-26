@@ -33,21 +33,28 @@ const createBooking = async (req, res) => {
         }
 
         // Default to a 0 price if the schedule/price hasn't been set by operator yet
-        const basePrice = bus.price || 0;
+        const basePrice = bus.basePrice || bus.price || 0;
+        let currentDemandFactor = bus.demandFactor || 1;
+        const today = new Date().toISOString().split('T')[0];
+        if (bus.date === today) currentDemandFactor += 0.05;
+        
+        const dynamicPrice = Math.round(basePrice * currentDemandFactor);
 
         let totalFare = 0;
         seatNumbers.forEach(seat => {
             const isQuickTicket = bus.quickTicketSeats.includes(seat);
-            const seatPrice = isQuickTicket ? basePrice * 1.3 : basePrice;
+            const seatPrice = isQuickTicket ? dynamicPrice * 1.3 : dynamicPrice;
             totalFare += seatPrice;
         });
 
         let paidAmount = totalFare;
         let remainingBalance = 0;
         let status = 'Confirmed';
+        let pPercent = 0;
 
         if (isPartialPayment) {
-            paidAmount = totalFare * 0.2; // 20% upfront
+            pPercent = req.body.partialPaymentPercentage || 20; // Default to 20% if not specified
+            paidAmount = totalFare * (pPercent / 100); 
             remainingBalance = totalFare - paidAmount;
             status = 'Partially Paid';
         }
@@ -68,6 +75,7 @@ const createBooking = async (req, res) => {
             seatNumbers,
             totalPrice: totalFare,
             isPartialPayment: !!isPartialPayment,
+            partialPaymentPercentage: pPercent,
             paidAmount,
             remainingBalance,
             passengerDetails,
